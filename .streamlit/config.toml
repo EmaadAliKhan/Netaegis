@@ -1,0 +1,18 @@
+# NetAegis — Streamlit theme
+# Vermilion/Burnt-Orange accent palette — no cyan/blue anywhere.
+# These values drive every Streamlit widget (inputs, selectboxes, dataframes, etc.)
+# so native components already feel on-brand without extra CSS overrides.
+
+[theme]
+base                     = "dark"
+primaryColor             = "#E64833"          # Vermilion accent
+backgroundColor          = "#0E0E10"          # True near-black canvas
+secondaryBackgroundColor = "#18181B"          # Card / sidebar surfaces
+textColor                = "#F4F4F5"          # Primary text
+font                     = "sans serif"
+
+[browser]
+gatherUsageStats = false
+
+[server]
+headless = true
