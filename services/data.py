@@ -18,11 +18,12 @@ from utils.state import get_simulated_alert_records
 
 
 def _mock_metrics() -> dict[str, tuple[Any, int | float | str | None]]:
+    """Idle demo KPIs — threats stay 0 until Simulate Attack (session state)."""
     return {
-        "flows_analyzed": (142, -8),
-        "active_threats": (7, +3),
-        "compliance_score": ("94%", +2),
-        "time_to_remediate": ("18m", -4),
+        "flows_analyzed": (142, None),
+        "active_threats": (0, None),
+        "compliance_score": ("98%", None),
+        "time_to_remediate": ("12m", None),
     }
 
 
@@ -495,6 +496,52 @@ def mock_xai_heatmap() -> pd.DataFrame:
 
 # ─── Threat Intel ──────────────────────────────────────────────────────────────
 
+def _mock_top_malicious_ips() -> pd.DataFrame:
+    return pd.DataFrame([
+        {"IP": "203.0.113.42", "Hits (7d)": 48, "Top Severity": "Critical", "Max Conf": 0.9912},
+        {"IP": "198.51.100.17", "Hits (7d)": 31, "Top Severity": "High", "Max Conf": 0.9641},
+        {"IP": "192.0.2.88", "Hits (7d)": 22, "Top Severity": "High", "Max Conf": 0.9388},
+        {"IP": "203.0.113.15", "Hits (7d)": 18, "Top Severity": "Medium", "Max Conf": 0.9102},
+        {"IP": "198.51.100.203", "Hits (7d)": 11, "Top Severity": "Medium", "Max Conf": 0.8874},
+    ])
+
+
+def _mock_recent_malicious_alerts(limit: int = 20) -> pd.DataFrame:
+    df = _mock_alerts_queue_df(malicious_only=True, n=min(limit, 18))
+    if df.empty:
+        return df
+    out = df.rename(columns={"Event Time": "Time (UTC)"})
+    keep = [
+        "ID", "Time (UTC)", "Severity", "Src IP", "Dst IP",
+        "Dst Port", "Protocol", "Confidence", "Status",
+    ]
+    return out[[c for c in keep if c in out.columns]]
+
+
+def _mock_analytics_metrics() -> dict[str, Any]:
+    return {
+        "total": 3842,
+        "tcp_pct": 72,
+        "bad_ips": 14,
+        "mal_cnt": 287,
+        "proto_counts": {"TCP": 2766, "UDP": 892, "ICMP": 124, "Other": 60},
+    }
+
+
+def _mock_hourly_alert_counts() -> pd.DataFrame:
+    now = datetime.utcnow()
+    rng = np.random.default_rng(7)
+    records: list[dict[str, Any]] = []
+    for h in range(24):
+        ts = (now - timedelta(hours=23 - h)).replace(minute=0, second=0, microsecond=0)
+        records.append({
+            "Hour": ts,
+            "Total": int(rng.integers(80, 220)),
+            "Malicious": int(rng.integers(2, 18)),
+        })
+    return pd.DataFrame.from_records(records)
+
+
 @st.cache_data(ttl=30)
 def fetch_top_malicious_ips(limit: int = 20) -> tuple[pd.DataFrame, bool]:
     """Top malicious source IPs from the last 7 days."""
@@ -530,7 +577,7 @@ def fetch_top_malicious_ips(limit: int = 20) -> tuple[pd.DataFrame, bool]:
         ]
         return (pd.DataFrame.from_records(records), True)
     except Exception:
-        return (pd.DataFrame(columns=["IP", "Hits (7d)", "Top Severity", "Max Conf"]), False)
+        return (_mock_top_malicious_ips().head(max(1, int(limit))), False)
 
 
 @st.cache_data(ttl=30)
@@ -568,9 +615,35 @@ def fetch_recent_malicious_alerts(limit: int = 20) -> tuple[pd.DataFrame, bool]:
                 "Confidence": float(conf) if conf is not None else None,
                 "Status": str(status or ""),
             })
-        return (pd.DataFrame.from_records(records), True)
+        df = pd.DataFrame.from_records(records)
+        return (_prepend_session_alerts_recent(df), True)
     except Exception:
-        return (pd.DataFrame(), False)
+        lim = max(1, int(limit))
+        base = _mock_recent_malicious_alerts(lim)
+        return (_prepend_session_alerts_recent(base).head(lim), False)
+
+
+def _prepend_session_alerts_recent(df: pd.DataFrame) -> pd.DataFrame:
+    records = get_simulated_alert_records()
+    if not records:
+        return df
+    rows = []
+    for r in records:
+        rows.append({
+            "ID": r.get("ID"),
+            "Time (UTC)": r.get("Event Time"),
+            "Severity": r.get("Severity"),
+            "Src IP": r.get("Src IP"),
+            "Dst IP": r.get("Dst IP"),
+            "Dst Port": r.get("Dst Port"),
+            "Protocol": r.get("Protocol"),
+            "Confidence": r.get("Confidence"),
+            "Status": r.get("Status"),
+        })
+    sim_df = pd.DataFrame.from_records(rows)
+    if df.empty:
+        return sim_df
+    return pd.concat([sim_df, df], ignore_index=True)
 
 
 # ─── Analytics (real data from alerts) ────────────────────────────────────────
@@ -612,10 +685,7 @@ def fetch_analytics_metrics() -> tuple[dict[str, Any], bool]:
             "proto_counts": {"TCP": tcp, "UDP": udp, "ICMP": icmp, "Other": other},
         }, True)
     except Exception:
-        return ({
-            "total": 0, "tcp_pct": 0, "bad_ips": 0, "mal_cnt": 0,
-            "proto_counts": {"TCP": 0, "UDP": 0, "ICMP": 0, "Other": 0},
-        }, False)
+        return (_mock_analytics_metrics(), False)
 
 
 @st.cache_data(ttl=30)
@@ -645,4 +715,4 @@ def fetch_hourly_alert_counts() -> tuple[pd.DataFrame, bool]:
         df["Malicious"] = df["Malicious"].astype(int)
         return (df, True)
     except Exception:
-        return (pd.DataFrame(columns=["Hour", "Total", "Malicious"]), False)
+        return (_mock_hourly_alert_counts(), False)

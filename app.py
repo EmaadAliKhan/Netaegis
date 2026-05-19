@@ -52,13 +52,15 @@ def main() -> None:
 
     raw_threats = metrics["active_threats"][0]
     raw_n = int(raw_threats) if isinstance(raw_threats, (int, float)) else 0
+    sim_n = get_simulated_threat_count()
+    # Demo mode: only session-simulated attacks trigger the banner (not static mock KPIs).
+    threat_for_hold = sim_n if not db_ok else raw_n
 
-    show_amber, held_display = sync_attack_hold(raw_n)
+    show_amber, held_display = sync_attack_hold(threat_for_hold)
     metrics = apply_attack_hold_to_metrics(metrics, held_display, show_amber)
 
     db_attack = data_svc.fetch_attack_active() if mysql_ok else False
-    sim_n = get_simulated_threat_count()
-    pulse_under_attack = bool(db_attack or show_amber or sim_n > 0)
+    pulse_under_attack = bool(db_attack or show_amber)
 
     # One global <style> block (proven path — same as sidebar theme overrides).
     inject_base_styles(attack_active=pulse_under_attack)
@@ -74,7 +76,7 @@ def main() -> None:
             render_overview_view(
                 metrics=metrics,
                 db_ok=db_ok,
-                show_amber=show_amber or sim_n > 0,
+                show_amber=show_amber,
             )
         elif selected_page == "Threat Intel":
             render_threat_intel_view()
@@ -88,7 +90,7 @@ def main() -> None:
     if selected_page == "Overview":
         refresh_sec = (
             DASHBOARD_REFRESH_SEC_UNDER_ATTACK
-            if (pulse_under_attack or raw_n > 0)
+            if pulse_under_attack
             else DASHBOARD_REFRESH_SEC
         )
         time.sleep(refresh_sec)

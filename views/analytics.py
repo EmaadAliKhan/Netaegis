@@ -14,7 +14,7 @@ def render_analytics_view() -> None:
 
     analytics, ok = data_svc.fetch_analytics_metrics()
     if not ok:
-        st.warning("MySQL unreachable — metrics below are unavailable.")
+        st.info("Demo mode — sample analytics below. Click **Simulate Attack** on Overview for live spikes.")
 
     m1, m2, m3, m4 = st.columns(4)
     with m1:
@@ -125,5 +125,3 @@ def render_analytics_view() -> None:
             key="analytics_protocol_donut",
         )
 
-    if not ok:
-        st.caption("⚠ All values shown are zero — MySQL is unreachable. Fix `.env` and `init_db.py`.")

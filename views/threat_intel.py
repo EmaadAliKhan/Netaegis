@@ -57,8 +57,8 @@ def render_threat_intel_view() -> None:
             st.caption("Live from `alerts` — highest-hit source IPs flagged Malicious in the last 7 days.")
             df_ips, ips_ok = data_svc.fetch_top_malicious_ips(limit=20)
             if not ips_ok:
-                st.warning("MySQL unreachable — IP reputation data unavailable.")
-            elif df_ips.empty:
+                st.info("Demo mode — sample malicious IPs below.")
+            if df_ips.empty and ips_ok:
                 st.info("No malicious source IPs recorded in the last 7 days.")
             else:
                 _dataframe(
@@ -80,8 +80,8 @@ def render_threat_intel_view() -> None:
         st.caption("Live from `alerts` where `prediction = 'Malicious'`, newest first.")
         df_hist, hist_ok = data_svc.fetch_recent_malicious_alerts(limit=50)
         if not hist_ok:
-            st.warning("MySQL unreachable — historical attack data unavailable.")
-        elif df_hist.empty:
+            st.info("Demo mode — sample malicious alert history below.")
+        if df_hist.empty and hist_ok:
             st.info("No malicious alerts found in the database.")
         else:
             styled = (
