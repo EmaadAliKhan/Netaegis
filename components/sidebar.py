@@ -4,6 +4,7 @@ from __future__ import annotations
 import streamlit as st
 
 from theme import C_ACCENT, C_BORDER, C_CARD, C_SUB, C_SUCCESS, C_TEXT
+from utils.state import trigger_simulated_attack
 
 _NAV_PAGES: list[tuple[str, str, str]] = [
     ("dashboard", "Overview", "Overview"),
@@ -94,6 +95,27 @@ def render_sidebar(live: bool, mysql_ok: bool) -> str:
             ):
                 st.session_state["netaegis_nav"] = internal
                 st.rerun()
+
+        st.markdown(
+            f"<div style='height:1px;background:{C_BORDER};margin:10px 0;'></div>",
+            unsafe_allow_html=True,
+        )
+
+        if st.button(
+            "Simulate Attack",
+            key="netaegis_simulate_attack",
+            type="primary",
+            width="stretch",
+            icon=":material/bolt:",
+            help=(
+                "Inject synthetic malicious traffic — detection banner, KPI spike, "
+                "and alert queues update (no MySQL required)."
+            ),
+        ):
+            trigger_simulated_attack()
+            st.session_state["netaegis_nav"] = "Overview"
+            st.toast("Attack simulated — malicious traffic detected by EdgeBERT.")
+            st.rerun()
 
         st.markdown(
             f"<div style='height:1px;background:{C_BORDER};margin:10px 0;'></div>",

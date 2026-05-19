@@ -14,6 +14,7 @@ from sqlalchemy import text
 
 from backend.common.db import get_db_session
 from theme import ATTACK_ALERT_WINDOW_SEC, SNIFFER_MAX_LAG_SEC
+from utils.state import get_simulated_alert_records
 
 
 def _mock_metrics() -> dict[str, tuple[Any, int | float | str | None]]:
@@ -178,9 +179,22 @@ def fetch_threat_origins() -> tuple[list[dict], bool]:
             label = str(src_ip) if len(str(src_ip)) <= 18 else str(src_ip)[:15] + "…"
             size = min(30, max(6, int(cnt) * 2))
             out.append({"lat": lat, "lon": lon, "label": label, "size": size})
+        session_pts = _session_threat_origin_points()
+        if session_pts:
+            labels = {o["label"] for o in out}
+            for pt in session_pts:
+                if pt["label"] not in labels:
+                    out.insert(0, pt)
         return (out, True)
     except Exception:
-        return (_mock_threat_origins_fallback(), False)
+        base = _mock_threat_origins_fallback()
+        session_pts = _session_threat_origin_points()
+        if session_pts:
+            labels = {o["label"] for o in base}
+            for pt in session_pts:
+                if pt["label"] not in labels:
+                    base.insert(0, pt)
+        return (base, False)
 
 
 def _mock_top_ports() -> pd.DataFrame:
@@ -325,6 +339,30 @@ def _mock_alerts_queue_df(*, malicious_only: bool, n: int = 18) -> pd.DataFrame:
     return pd.DataFrame.from_records(records, columns=_QUEUE_COLS)
 
 
+def _prepend_session_alerts(df: pd.DataFrame) -> pd.DataFrame:
+    records = get_simulated_alert_records()
+    if not records:
+        return df
+    sim_df = pd.DataFrame.from_records(records, columns=_QUEUE_COLS)
+    if df.empty:
+        return sim_df
+    return pd.concat([sim_df, df], ignore_index=True)
+
+
+def _session_threat_origin_points() -> list[dict]:
+    """Map markers for IPs injected via Simulate Attack (session-only)."""
+    seen: set[str] = set()
+    out: list[dict] = []
+    for row in get_simulated_alert_records():
+        ip = str(row.get("Src IP") or "").strip()
+        if not ip or ip in seen:
+            continue
+        seen.add(ip)
+        lat, lon = _ip_to_latlon(ip)
+        out.append({"lat": lat, "lon": lon, "label": ip, "size": 26})
+    return out
+
+
 @st.cache_data(ttl=2)
 def fetch_malicious_alerts_queue(limit: int = 100) -> tuple[pd.DataFrame, bool]:
     lim = max(1, min(int(limit), 500))
@@ -343,9 +381,11 @@ def fetch_malicious_alerts_queue(limit: int = 100) -> tuple[pd.DataFrame, bool]:
                 ),
                 {"lim": lim},
             ).fetchall()
-        return (_rows_to_alert_queue_df(list(rows)), True)
+        df = _rows_to_alert_queue_df(list(rows))
+        return (_prepend_session_alerts(df).head(lim), True)
     except Exception:
-        return (_mock_alerts_queue_df(malicious_only=True, n=min(24, lim)), False)
+        df = _mock_alerts_queue_df(malicious_only=True, n=min(24, lim))
+        return (_prepend_session_alerts(df).head(lim), False)
 
 
 @st.cache_data(ttl=2)
@@ -365,9 +405,11 @@ def fetch_all_alerts_queue(limit: int = 100) -> tuple[pd.DataFrame, bool]:
                 ),
                 {"lim": lim},
             ).fetchall()
-        return (_rows_to_alert_queue_df(list(rows)), True)
+        df = _rows_to_alert_queue_df(list(rows))
+        return (_prepend_session_alerts(df).head(lim), True)
     except Exception:
-        return (_mock_alerts_queue_df(malicious_only=False, n=min(24, lim)), False)
+        df = _mock_alerts_queue_df(malicious_only=False, n=min(24, lim))
+        return (_prepend_session_alerts(df).head(lim), False)
 
 
 @st.cache_data(ttl=2)

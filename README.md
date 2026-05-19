@@ -154,6 +154,43 @@ python attack_sim.py
 | Dashboard empty | Sniffer or `attack_sim.py` writing rows; DB credentials in `.env` |
 | Import errors | Virtualenv activated; `pip install -r requirements.txt` |
 
+## Host a recruiter demo (free)
+
+The NetAegis dashboard (`app.py`) runs in **demo mode** without MySQL: synthetic KPIs, maps, and queues. **Total Flows Analyzed** ticks up on each Overview refresh and when you click **Simulate Attack**. Use **Simulate Attack** in the sidebar to trigger the red detection banner, pulsing UI, Active Threats spike, and new alert rows (session-only, ~90s).
+
+### Deploy on Streamlit Community Cloud
+
+1. **Push to GitHub** — create a **public** repo and push this project (do not commit `.env`).
+
+2. **Sign in** — go to [share.streamlit.io](https://share.streamlit.io) and log in with GitHub.
+
+3. **New app** — click **Create app** (or **New app**).
+
+4. **Configure the app:**
+
+   | Field | Value |
+   |-------|--------|
+   | Repository | `your-username/cyber2` (your repo) |
+   | Branch | `main` |
+   | Main file path | `app.py` |
+
+5. **Advanced settings** (expand before Deploy):
+
+   | Field | Value |
+   |-------|--------|
+   | Python version | `3.10` or `3.11` |
+   | Requirements file | `requirements-deploy.txt` |
+
+6. **Secrets** — leave empty for demo mode (no MySQL).
+
+7. Click **Deploy**. Wait 2–5 minutes for the first build.
+
+8. Copy your public URL (e.g. `https://netaegis-demo.streamlit.app`) and add it to your resume/README.
+
+**After code changes:** push to GitHub — Streamlit Cloud rebuilds automatically.
+
+Do **not** deploy `live_sniffer.py` or training (Npcap / PyTorch are local-only). On the hosted app, MySQL and Sniffer will show **Offline** / **Stopped** — that is expected.
+
 ## License
 
 Add your team’s license here if applicable.

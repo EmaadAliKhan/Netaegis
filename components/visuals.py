@@ -200,10 +200,15 @@ def render_metrics_row(data: dict[str, tuple[Any, int | float | str | None]]) ->
     with c1:
         with st.container(border=True):
             vo, do = data["flows_analyzed"]
-            kw: dict = {"help": "Lifetime flow rows in `alerts`."}
+            kw: dict = {
+                "help": (
+                    "Lifetime flows in `alerts` plus session demo/simulated traffic "
+                    "(increments on refresh and Simulate Attack)."
+                ),
+            }
             if do is not None:
                 kw["delta"] = do
-                kw["delta_color"] = "inverse"
+                kw["delta_color"] = "normal" if isinstance(do, (int, float)) and do > 0 else "inverse"
             val = f"{int(vo):,}" if isinstance(vo, (int, float)) else vo
             st.metric("Total Flows Analyzed", val, **kw)
     with c2:

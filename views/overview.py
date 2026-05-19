@@ -55,7 +55,10 @@ def render_overview_view(
     # ── KPI metrics ────────────────────────────────────────────────────────
     with st.container():
         if not db_ok:
-            st.warning("Cannot reach MySQL — check `.env` and `init_db.py`.")
+            st.info(
+                "Demo mode — synthetic SOC telemetry. Use **Simulate Attack** in the sidebar "
+                "to trigger detection."
+            )
         render_metrics_row(metrics)
 
     # ── Global threat map — full width (ports chart lives on Threat Intel) ─

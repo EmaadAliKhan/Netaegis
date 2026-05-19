@@ -23,7 +23,9 @@ from utils.state import (
     get_simulated_threat_count,
     init_attack_session_state,
     merge_session_into_active_threats_metric,
+    merge_session_into_flows_metric,
     sync_attack_hold,
+    tick_demo_background_flows,
 )
 from views.analytics import render_analytics_view
 from views.overview import render_overview_view
@@ -44,6 +46,8 @@ def main() -> None:
 
     mysql_ok = data_svc.fetch_mysql_connected()
     metrics, db_ok = data_svc.fetch_dashboard_metrics()
+    tick_demo_background_flows(enabled=not db_ok)
+    metrics = merge_session_into_flows_metric(metrics)
     metrics = merge_session_into_active_threats_metric(metrics)
 
     raw_threats = metrics["active_threats"][0]
@@ -70,7 +74,7 @@ def main() -> None:
             render_overview_view(
                 metrics=metrics,
                 db_ok=db_ok,
-                show_amber=show_amber,
+                show_amber=show_amber or sim_n > 0,
             )
         elif selected_page == "Threat Intel":
             render_threat_intel_view()
